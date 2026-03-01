@@ -2,7 +2,7 @@ name = "eral"
 main = "src/index.ts"
 compatibility_date = "2026-02-20"
 compatibility_flags = ["nodejs_compat"]
-workers_dev = false
+workers_dev = true
 preview_urls = false
 
 [[routes]]
@@ -29,11 +29,11 @@ id = "f3be942849d4466bad374130bdf451ce"
 
 [[kv_namespaces]]
 binding = "KV_MEMORY"
-id = "REPLACE_WITH_NEW_KV_ID"
+id = "381283eb1b1e4f02b4c9b26dcbaa07ab"
 
 [[kv_namespaces]]
 binding = "KV_API_KEYS"
-id = "REPLACE_WITH_APIKEYS_KV_ID"
+id = "e4197f2c6dcd42b5ac1065d01ee9f0e8"
 
 # Cloudflare Workers AI (fallback when OPENAI_API_KEY is not set)
 [ai]
