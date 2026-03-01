@@ -61,14 +61,23 @@ app.get('/', (c) => c.json({
 }));
 
 app.get('/health', (c) => c.json({ status: 'ok', timestamp: new Date().toISOString() }));
+app.get('/api/health', (c) => c.json({ status: 'ok', timestamp: new Date().toISOString() }));
 
 // ===== ROUTES =====
+// Mount at both /v1/* (workers.dev direct) and /api/v1/* (custom domain CF route)
 app.route('/v1/chat', chatRouter);
 app.route('/v1/generate', generateRouter);
 app.route('/v1/analyze', analyzeRouter);
 app.route('/v1/wokgen', wokgenRouter);
 app.route('/v1/status', statusRouter);
 app.route('/v1/keys', keysRouter);
+
+app.route('/api/v1/chat', chatRouter);
+app.route('/api/v1/generate', generateRouter);
+app.route('/api/v1/analyze', analyzeRouter);
+app.route('/api/v1/wokgen', wokgenRouter);
+app.route('/api/v1/status', statusRouter);
+app.route('/api/v1/keys', keysRouter);
 
 // widget.js — served from the worker for easy CDN delivery
 app.get('/widget.js', (c) => {
@@ -93,6 +102,7 @@ app.get('/widget.js', (c) => {
     headers: { 'Content-Type': 'application/javascript; charset=utf-8', 'Cache-Control': 'public, max-age=300' },
   });
 });
+app.get('/api/widget.js', (c) => c.redirect('/widget.js', 302));
 
 // ===== ERROR HANDLERS =====
 app.notFound((c) =>
