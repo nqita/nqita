@@ -1,6 +1,7 @@
-import type { Context, Next, MiddlewareHandler } from 'hono';
-import type { Env } from '../types';
+import type { MiddlewareHandler, Context } from 'hono';
+import type { Env, EralUser, EralAuth, ApiKeyScope } from '../types';
 import { verifyToken } from '../lib/jwt';
+import { verifyApiKey } from '../lib/api-keys';
 import { checkRateLimit } from '../lib/rate-limit';
 
 export const securityHeaders = (): MiddlewareHandler<{ Bindings: Env }> => {
@@ -10,10 +11,6 @@ export const securityHeaders = (): MiddlewareHandler<{ Bindings: Env }> => {
     c.header('X-Frame-Options', 'DENY');
     c.header('Referrer-Policy', 'strict-origin-when-cross-origin');
     c.header('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
-    c.header(
-      'Content-Security-Policy',
-      "default-src 'self'; script-src 'self'; object-src 'none'; frame-ancestors 'none';"
-    );
     if (c.env.ENVIRONMENT === 'production') {
       c.header('Strict-Transport-Security', 'max-age=63072000; includeSubDomains; preload');
     }
@@ -30,7 +27,7 @@ export const requestId = (): MiddlewareHandler => {
 };
 
 export const rateLimit = (
-  type: 'default' | 'chat' | 'generate' | 'analyze' | 'wokgen' = 'default'
+  type: 'default' | 'chat' | 'generate' | 'analyze' | 'wokgen' | 'keys' = 'default'
 ): MiddlewareHandler<{ Bindings: Env }> => {
   return async (c, next) => {
     const ip = c.req.header('cf-connecting-ip') ?? c.req.header('x-forwarded-for') ?? 'unknown';
@@ -47,43 +44,62 @@ export const rateLimit = (
   };
 };
 
-export const requireAuth = (): MiddlewareHandler<{
-  Bindings: Env;
-  Variables: { user: import('../types').EralUser };
-}> => {
+async function resolveAuth(c: Context<{ Bindings: Env; Variables: any }>): Promise<EralAuth> {
+  const authHeader = c.req.header('Authorization');
+  const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
+  if (!token) return { user: null, apiKey: null, method: 'none' };
+
+  // API key (starts with eral_)
+  if (token.startsWith('eral_')) {
+    const record = await verifyApiKey(c.env.KV_API_KEYS, token);
+    if (record) {
+      const user: EralUser = { id: record.ownerId, email: '', displayName: `API Key: ${record.name}`, avatarUrl: null };
+      return { user, apiKey: record, method: 'apikey' };
+    }
+    return { user: null, apiKey: null, method: 'none' };
+  }
+
+  // WokSpec JWT
+  const user = await verifyToken(token, c.env.JWT_SECRET);
+  if (user) return { user, apiKey: null, method: 'jwt' };
+
+  return { user: null, apiKey: null, method: 'none' };
+}
+
+export const requireAuth = (
+  scope?: ApiKeyScope
+): MiddlewareHandler<{ Bindings: Env; Variables: { user: EralUser; auth: EralAuth } }> => {
   return async (c, next) => {
-    const authHeader = c.req.header('Authorization');
-    const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
-    if (!token) {
+    const auth = await resolveAuth(c);
+    if (!auth.user) {
       return c.json(
-        { data: null, error: { code: 'UNAUTHORIZED', message: 'Authentication required', status: 401 } },
+        { data: null, error: { code: 'UNAUTHORIZED', message: 'Provide a WokSpec JWT or Eral API key (Authorization: Bearer <token>)', status: 401 } },
         401
       );
     }
-    const user = await verifyToken(token, c.env.JWT_SECRET);
-    if (!user) {
-      return c.json(
-        { data: null, error: { code: 'INVALID_TOKEN', message: 'Invalid or expired token', status: 401 } },
-        401
-      );
+    if (auth.method === 'apikey' && scope && auth.apiKey) {
+      const allowed = auth.apiKey.scopes.includes('*') || auth.apiKey.scopes.includes(scope);
+      if (!allowed) {
+        return c.json(
+          { data: null, error: { code: 'FORBIDDEN', message: `API key missing scope: ${scope}`, status: 403 } },
+          403
+        );
+      }
     }
-    c.set('user', user);
+    c.set('user', auth.user);
+    c.set('auth', auth);
     await next();
   };
 };
 
 export const optionalAuth = (): MiddlewareHandler<{
   Bindings: Env;
-  Variables: { user: import('../types').EralUser | null };
+  Variables: { user: EralUser | null; auth: EralAuth };
 }> => {
   return async (c, next) => {
-    c.set('user', null);
-    const authHeader = c.req.header('Authorization');
-    const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
-    if (token) {
-      const user = await verifyToken(token, c.env.JWT_SECRET);
-      c.set('user', user);
-    }
+    const auth = await resolveAuth(c);
+    c.set('user', auth.user);
+    c.set('auth', auth);
     await next();
   };
 };

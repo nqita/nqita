@@ -31,6 +31,10 @@ id = "f3be942849d4466bad374130bdf451ce"
 binding = "KV_MEMORY"
 id = "REPLACE_WITH_NEW_KV_ID"
 
+[[kv_namespaces]]
+binding = "KV_API_KEYS"
+id = "REPLACE_WITH_APIKEYS_KV_ID"
+
 # Cloudflare Workers AI (fallback when OPENAI_API_KEY is not set)
 [ai]
 binding = "AI"

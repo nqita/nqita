@@ -5,9 +5,10 @@
 
 export interface Env {
   // KV Namespaces
-  KV_SESSIONS: KVNamespace;          // Shared with WokAPI — session verification
+  KV_SESSIONS: KVNamespace;
   KV_RATE_LIMITS: KVNamespace | undefined;
-  KV_MEMORY: KVNamespace | undefined; // Conversation memory store
+  KV_MEMORY: KVNamespace | undefined;
+  KV_API_KEYS: KVNamespace | undefined; // API keys for external site integration
 
   // Cloudflare Workers AI (fallback when OpenAI key absent)
   AI: Ai | undefined;
@@ -28,6 +29,26 @@ export interface EralUser {
   displayName: string;
   avatarUrl: string | null;
 }
+
+/** Auth context — populated by either JWT or API key */
+export interface EralAuth {
+  user: EralUser | null;
+  /** API key record when authenticated via key (external sites / bots) */
+  apiKey: ApiKeyRecord | null;
+  /** How this request was authenticated */
+  method: 'jwt' | 'apikey' | 'none';
+}
+
+export interface ApiKeyRecord {
+  id: string;           // key id (prefix of the key, safe to store)
+  name: string;         // human label e.g. "My Site" or "Discord Bot"
+  ownerId: string;      // WokSpec user id who created it
+  scopes: ApiKeyScope[];
+  createdAt: string;
+  lastUsedAt: string | null;
+}
+
+export type ApiKeyScope = 'chat' | 'generate' | 'analyze' | 'wokgen' | '*';
 
 // ── API Responses ─────────────────────────────────────────────────────────────
 
@@ -57,20 +78,20 @@ export interface Message {
 }
 
 export type GenerateType =
-  | 'post'        // Social media post
-  | 'caption'     // Image/video caption
-  | 'code'        // Code snippet
-  | 'prompt'      // AI image prompt
-  | 'docs'        // Documentation / README section
-  | 'email'       // Email draft
-  | 'summary';    // Summary of provided content
+  | 'post'
+  | 'caption'
+  | 'code'
+  | 'prompt'
+  | 'docs'
+  | 'email'
+  | 'summary';
 
 export type AnalyzeType =
-  | 'summarize'   // Concise summary
-  | 'explain'     // Plain-language explanation
-  | 'review'      // Code / content review with feedback
-  | 'extract'     // Extract key points as a list
-  | 'sentiment';  // Sentiment analysis
+  | 'summarize'
+  | 'explain'
+  | 'review'
+  | 'extract'
+  | 'sentiment';
 
 export interface ModelInfo {
   provider: 'openai' | 'cloudflare';

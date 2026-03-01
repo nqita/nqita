@@ -7,15 +7,19 @@ import { generateRouter } from './routes/generate';
 import { analyzeRouter } from './routes/analyze';
 import { wokgenRouter } from './routes/wokgen';
 import { statusRouter } from './routes/status';
+import { keysRouter } from './routes/keys';
 
 const app = new Hono<{ Bindings: Env }>();
 
 // ===== MIDDLEWARE =====
 app.use('*', requestId());
 app.use('*', securityHeaders());
+
+// CORS — WokSpec products and browser extensions use the allowlist.
+// External sites using an API key may come from any origin.
 app.use('*', cors({
   origin: (origin, c) => {
-    const allowed = [
+    const wokspecOrigins = [
       'https://wokspec.org',
       'https://www.wokspec.org',
       'https://wokgen.wokspec.org',
@@ -23,27 +27,36 @@ app.use('*', cors({
       'https://chopsticks.wokspec.org',
       'https://eral.wokspec.org',
     ];
-    if (c.env.ENVIRONMENT !== 'production' && origin?.includes('localhost')) return origin;
+    // Always allow WokSpec origins
+    if (wokspecOrigins.includes(origin ?? '')) return origin;
+    // Always allow browser extensions
     if (origin?.startsWith('chrome-extension://') || origin?.startsWith('moz-extension://')) return origin;
-    return allowed.includes(origin ?? '') ? origin : null;
+    // Allow localhost in dev
+    if (c.env.ENVIRONMENT !== 'production' && origin?.includes('localhost')) return origin;
+    // Allow any origin — API key auth provides the security boundary for external sites.
+    // The Authorization header check in middleware enforces auth regardless of origin.
+    return origin ?? '*';
   },
   allowMethods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowHeaders: ['Content-Type', 'Authorization'],
+  allowHeaders: ['Content-Type', 'Authorization', 'X-Eral-Source'],
   credentials: true,
 }));
 
 // ===== INFO =====
 app.get('/', (c) => c.json({
   service: 'Eral',
-  description: 'WokSpec AI — intelligent assistant across all WokSpec products',
-  version: '0.1.0',
+  description: 'WokSpec AI — embed intelligent chat, generation & analysis into any product',
+  version: '0.2.0',
   docs: 'https://eral.wokspec.org/docs',
+  auth: 'WokSpec JWT  or  Eral API key (Authorization: Bearer <token>)',
   endpoints: {
-    chat:     'POST /v1/chat',
-    generate: 'POST /v1/generate',
-    analyze:  'POST /v1/analyze',
-    wokgen:   'POST /v1/wokgen/prompt',
-    status:   'GET  /v1/status',
+    chat:     'POST /api/v1/chat',
+    generate: 'POST /api/v1/generate',
+    analyze:  'POST /api/v1/analyze',
+    wokgen:   'POST /api/v1/wokgen/prompt',
+    keys:     'GET|POST|DELETE /api/v1/keys',
+    status:   'GET  /api/v1/status',
+    widget:   'GET  /api/widget.js',
   },
 }));
 
@@ -55,6 +68,31 @@ app.route('/v1/generate', generateRouter);
 app.route('/v1/analyze', analyzeRouter);
 app.route('/v1/wokgen', wokgenRouter);
 app.route('/v1/status', statusRouter);
+app.route('/v1/keys', keysRouter);
+
+// widget.js — served from the worker for easy CDN delivery
+app.get('/widget.js', (c) => {
+  const eralOrigin = c.env.ENVIRONMENT === 'production'
+    ? 'https://eral.wokspec.org/api'
+    : `http://localhost:8788`;
+
+  // Minimal loader: injects <script type="module"> that fetches the real widget bundle.
+  // Replace with an actual esbuild bundle in production (see Eral/widget/).
+  const js = `
+(function(){
+  if(window.__eralLoaded) return;
+  window.__eralLoaded = true;
+  var s = document.createElement('script');
+  s.type = 'module';
+  s.src = '${eralOrigin}/widget-bundle.js';
+  s.dataset.eralOrigin = '${eralOrigin}';
+  document.head.appendChild(s);
+})();
+`.trim();
+  return new Response(js, {
+    headers: { 'Content-Type': 'application/javascript; charset=utf-8', 'Cache-Control': 'public, max-age=300' },
+  });
+});
 
 // ===== ERROR HANDLERS =====
 app.notFound((c) =>

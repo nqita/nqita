@@ -11,6 +11,7 @@ const RATE_LIMITS: Record<string, RateLimitConfig> = {
   generate: { limit: 20,  windowSeconds: 60 },
   analyze:  { limit: 30,  windowSeconds: 60 },
   wokgen:   { limit: 20,  windowSeconds: 60 },
+  keys:     { limit: 10,  windowSeconds: 60 },
 };
 
 export async function checkRateLimit(
