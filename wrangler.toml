@@ -1,0 +1,44 @@
+name = "eral"
+main = "src/index.ts"
+compatibility_date = "2026-02-20"
+compatibility_flags = ["nodejs_compat"]
+workers_dev = false
+preview_urls = false
+
+[[routes]]
+pattern = "eral.wokspec.org/api/*"
+zone_name = "wokspec.org"
+
+[observability]
+enabled = true
+
+[vars]
+ENVIRONMENT = "production"
+
+# KV Namespaces
+# KV_SESSIONS: shared with WokAPI for cross-service auth verification
+# KV_RATE_LIMITS: per-IP rate limiting for all Eral endpoints
+# KV_MEMORY: conversation memory store (TTL-based, per user session)
+[[kv_namespaces]]
+binding = "KV_SESSIONS"
+id = "487bab854f714db8a46e50f80f51d766"
+
+[[kv_namespaces]]
+binding = "KV_RATE_LIMITS"
+id = "f3be942849d4466bad374130bdf451ce"
+
+[[kv_namespaces]]
+binding = "KV_MEMORY"
+id = "REPLACE_WITH_NEW_KV_ID"
+
+# Cloudflare Workers AI (fallback when OPENAI_API_KEY is not set)
+[ai]
+binding = "AI"
+
+# Secrets (set via: wrangler secret put <NAME>)
+# JWT_SECRET        — shared with WokAPI, required
+# OPENAI_API_KEY    — GPT-4o primary provider, optional (falls back to CF AI)
+# SENTRY_DSN        — optional, error tracking
+
+[dev]
+port = 8788
