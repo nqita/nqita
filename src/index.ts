@@ -8,6 +8,8 @@ import { analyzeRouter } from './routes/analyze';
 import { wokgenRouter } from './routes/wokgen';
 import { statusRouter } from './routes/status';
 import { keysRouter } from './routes/keys';
+// @ts-ignore — imported as text blob via wrangler [[rules]]
+import WIDGET_BUNDLE from '../../dist/eral-widget.js';
 
 const app = new Hono<{ Bindings: Env }>();
 
@@ -79,30 +81,14 @@ app.route('/api/v1/wokgen', wokgenRouter);
 app.route('/api/v1/status', statusRouter);
 app.route('/api/v1/keys', keysRouter);
 
-// widget.js — served from the worker for easy CDN delivery
-app.get('/widget.js', (c) => {
-  const eralOrigin = c.env.ENVIRONMENT === 'production'
-    ? 'https://eral.wokspec.org/api'
-    : `http://localhost:8788`;
-
-  // Minimal loader: injects <script type="module"> that fetches the real widget bundle.
-  // Replace with an actual esbuild bundle in production (see Eral/widget/).
-  const js = `
-(function(){
-  if(window.__eralLoaded) return;
-  window.__eralLoaded = true;
-  var s = document.createElement('script');
-  s.type = 'module';
-  s.src = '${eralOrigin}/widget-bundle.js';
-  s.dataset.eralOrigin = '${eralOrigin}';
-  document.head.appendChild(s);
-})();
-`.trim();
-  return new Response(js, {
-    headers: { 'Content-Type': 'application/javascript; charset=utf-8', 'Cache-Control': 'public, max-age=300' },
-  });
-});
-app.get('/api/widget.js', (c) => c.redirect('/widget.js', 302));
+// widget.js — serve the pre-built IIFE bundle directly
+const WIDGET_HEADERS = {
+  'Content-Type': 'application/javascript; charset=utf-8',
+  'Cache-Control': 'public, max-age=3600',
+  'Access-Control-Allow-Origin': '*',
+};
+app.get('/widget.js', () => new Response(WIDGET_BUNDLE as string, { headers: WIDGET_HEADERS }));
+app.get('/api/widget.js', () => new Response(WIDGET_BUNDLE as string, { headers: WIDGET_HEADERS }));
 
 // ===== ERROR HANDLERS =====
 app.notFound((c) =>

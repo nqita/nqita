@@ -73,16 +73,21 @@ export async function deleteSession(sessionId: string): Promise<void> {
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
 }
 
-export async function createApiKey(): Promise<{ data: { key: string; id: string }; error: null | string }> {
-  const res = await fetch(`${ERAL_API}/v1/keys`, fetchOptions('POST', {}));
+export async function createApiKey(name?: string): Promise<{ data: { key: string; id: string }; error: null | string }> {
+  const res = await fetch(`${ERAL_API}/v1/keys`, fetchOptions('POST', { name: name ?? 'My App' }));
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json();
 }
 
-export async function listApiKeys(): Promise<{ data: { keys: { id: string; createdAt: string }[] }; error: null | string }> {
+export async function listApiKeys(): Promise<{ data: { keys: { id: string; name: string; createdAt: string }[] }; error: null | string }> {
   const res = await fetch(`${ERAL_API}/v1/keys`, fetchOptions('GET'));
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json();
+}
+
+export async function revokeApiKey(id: string): Promise<void> {
+  const res = await fetch(`${ERAL_API}/v1/keys/${encodeURIComponent(id)}`, fetchOptions('DELETE'));
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
 }
 
 export async function getStatus(): Promise<unknown> {

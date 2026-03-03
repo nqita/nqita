@@ -86,6 +86,10 @@ export default function ChatPage() {
           >
             Powered by Eral
           </span>
+          <div style={{ flex: 1 }} />
+          <a href="/keys" style={{ fontSize: '0.8rem', color: 'var(--muted)', textDecoration: 'none', padding: '0.25rem 0.625rem', border: '1px solid var(--border)', borderRadius: '0.5rem' }}>
+            API Keys
+          </a>
         </header>
         <ChatInterface />
       </div>
