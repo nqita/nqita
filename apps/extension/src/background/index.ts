@@ -258,21 +258,28 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     case "SUMMARIZE_PAGE": {
       ;(async () => {
         try {
-          const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
-          if (!tab?.id || !tab.url) { sendResponse({ success: false }); return }
-          if (/^(chrome|edge|about|moz-extension|chrome-extension):/.test(tab.url)) {
-            sendResponse({ success: false, error: "restricted_page" }); return
+          let content: string = (message as { content?: string }).content ?? ""
+          const isVideo: boolean = !!(message as { isVideo?: boolean }).isVideo
+          if (!content) {
+            const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
+            if (!tab?.id || !tab.url) { sendResponse({ success: false }); return }
+            if (/^(chrome|edge|about|moz-extension|chrome-extension):/.test(tab.url)) {
+              sendResponse({ success: false, error: "restricted_page" }); return
+            }
+            const [{ result }] = await chrome.scripting.executeScript({
+              target: { tabId: tab.id },
+              func: () => document.title + "\n\n" + document.body.innerText.slice(0, 8000),
+            })
+            content = result as string
           }
-          const [{ result }] = await chrome.scripting.executeScript({
-            target: { tabId: tab.id },
-            func: () => document.title + "\n\n" + document.body.innerText.slice(0, 8000),
-          })
           const { accessToken } = await chrome.storage.session.get(["accessToken"])
           if (!accessToken) { sendResponse({ success: false, error: "not_authenticated" }); return }
+          const analyzeType = isVideo ? "summarize" : "summarize"
+          const systemHint = isVideo ? "You are summarizing a video. Focus on the key topics, claims, and takeaways." : undefined
           const res = await fetch(`${ERAL_API}/v1/analyze`, {
             method: "POST",
             headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}`, "X-Eral-Source": "eral-extension" },
-            body: JSON.stringify({ type: "summarize", content: result }),
+            body: JSON.stringify({ type: analyzeType, content, ...(systemHint ? { systemHint } : {}) }),
           })
           if (!res.ok) { sendResponse({ success: false }); return }
           const data = await res.json()
