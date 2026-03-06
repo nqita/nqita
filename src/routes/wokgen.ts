@@ -26,10 +26,11 @@ wokgen.post(
     palette: z.string().max(200).optional().describe('Color palette or mood (e.g. "warm sunset", "neon cyberpunk")'),
     resolution: z.enum(['16x16', '32x32', '64x64', '128x128', '256x256', 'free']).default('free'),
     count: z.number().int().min(1).max(5).default(1).describe('Number of prompt variations to generate'),
+    quality: z.enum(['fast', 'balanced', 'best']).optional(),
   })),
   async (c) => {
     const user = c.get('user');
-    const { description, style, palette, resolution, count } = c.req.valid('json');
+    const { description, style, palette, resolution, count, quality } = c.req.valid('json');
 
     const styleGuides: Record<string, string> = {
       'pixel-art':    'classic pixel art with clean pixels, limited color palette, retro game aesthetic',
@@ -64,13 +65,18 @@ wokgen.post(
           ],
           maxTokens: count * 400,
           temperature: 0.8,
+          route: 'wokgen',
+          quality: quality ?? 'best',
         },
         {
           openaiApiKey: c.env.OPENAI_API_KEY,
           cfAI: c.env.AI,
           preferredProvider: c.env.AI_PROVIDER,
+          spendMode: c.env.AI_SPEND_MODE,
           openaiModel: c.env.OPENAI_MODEL,
+          openaiWokgenModel: c.env.OPENAI_WOKGEN_MODEL,
           cfModel: c.env.CF_AI_MODEL,
+          cfWokgenModel: c.env.CF_AI_WOKGEN_MODEL,
           cfFallbackModel: c.env.CF_AI_FALLBACK_MODEL,
         }
       );

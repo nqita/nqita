@@ -18,8 +18,17 @@ export interface Env {
   OPENAI_API_KEY: string | undefined;
   SENTRY_DSN: string | undefined;
   AI_PROVIDER: 'cloudflare' | 'openai' | undefined;
+  AI_SPEND_MODE: AISpendMode | undefined;
   OPENAI_MODEL: string | undefined;
+  OPENAI_CHAT_MODEL: string | undefined;
+  OPENAI_GENERATE_MODEL: string | undefined;
+  OPENAI_ANALYZE_MODEL: string | undefined;
+  OPENAI_WOKGEN_MODEL: string | undefined;
   CF_AI_MODEL: string | undefined;
+  CF_AI_CHAT_MODEL: string | undefined;
+  CF_AI_GENERATE_MODEL: string | undefined;
+  CF_AI_ANALYZE_MODEL: string | undefined;
+  CF_AI_WOKGEN_MODEL: string | undefined;
   CF_AI_FALLBACK_MODEL: string | undefined;
 
   ENVIRONMENT: string;
@@ -126,6 +135,12 @@ export type AnalyzeType =
   | 'review'
   | 'extract'
   | 'sentiment';
+
+export type AIRoute = 'chat' | 'generate' | 'analyze' | 'wokgen';
+
+export type AIQuality = 'fast' | 'balanced' | 'best';
+
+export type AISpendMode = 'free-only' | 'paid-fallback' | 'paid-primary';
 
 export interface ModelInfo {
   provider: 'openai' | 'cloudflare';

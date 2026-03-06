@@ -23,6 +23,7 @@ chat.post(
   zValidator('json', z.object({
     message:    z.string().min(1).max(4000),
     sessionId:  z.string().max(128).default('default'),
+    quality:    z.enum(['fast', 'balanced', 'best']).optional(),
     product:    ProductSchema,
     integration: IntegrationSchema,
     pageContext: z.string().max(12000).optional(),
@@ -30,7 +31,7 @@ chat.post(
   })),
   async (c) => {
     const user = c.get('user');
-    const { message, sessionId, product, integration, pageContext, history } = c.req.valid('json');
+    const { message, sessionId, quality, product, integration, pageContext, history } = c.req.valid('json');
 
     // Build context extras
     const userContext = buildContext({ user, product, integration, pageContext });
@@ -50,16 +51,25 @@ chat.post(
       ...pastMessages,
       { role: 'user' as const, content: message },
     ];
+    const resolvedQuality = quality ?? (messages.length > 8 ? 'best' : 'balanced');
 
     try {
       const result = await run(
-        { messages, maxTokens: 1024 },
+        {
+          messages,
+          maxTokens: 1024,
+          route: 'chat',
+          quality: resolvedQuality,
+        },
         {
           openaiApiKey: c.env.OPENAI_API_KEY,
           cfAI: c.env.AI,
           preferredProvider: c.env.AI_PROVIDER,
+          spendMode: c.env.AI_SPEND_MODE,
           openaiModel: c.env.OPENAI_MODEL,
+          openaiChatModel: c.env.OPENAI_CHAT_MODEL,
           cfModel: c.env.CF_AI_MODEL,
+          cfChatModel: c.env.CF_AI_CHAT_MODEL,
           cfFallbackModel: c.env.CF_AI_FALLBACK_MODEL,
         }
       );

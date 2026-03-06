@@ -26,13 +26,15 @@ analyze.post(
     content: z.string().min(1).max(20000).describe('The content to analyze'),
     context: z.string().max(2000).optional().describe('Additional context about the content'),
     focus:   z.string().max(500).optional().describe('Specific aspect to focus on'),
+    quality: z.enum(['fast', 'balanced', 'best']).optional(),
     systemHint: z.string().max(1000).optional().describe('Additional system-level instructions'),
     product: ProductSchema,
     integration: IntegrationSchema,
   })),
   async (c) => {
     const user = c.get('user');
-    const { type, content, context, focus, systemHint, product, integration } = c.req.valid('json');
+    const { type, content, context, focus, quality, systemHint, product, integration } = c.req.valid('json');
+    const resolvedQuality = quality ?? (type === 'review' || type === 'explain' ? 'best' : 'balanced');
 
     const promptExtras = productPromptExtras(product, integration);
     const userContext = buildContext({ user, product, integration });
@@ -61,13 +63,18 @@ analyze.post(
           ],
           maxTokens: 1500,
           temperature: type === 'review' ? 0.4 : 0.6,
+          route: 'analyze',
+          quality: resolvedQuality,
         },
         {
           openaiApiKey: c.env.OPENAI_API_KEY,
           cfAI: c.env.AI,
           preferredProvider: c.env.AI_PROVIDER,
+          spendMode: c.env.AI_SPEND_MODE,
           openaiModel: c.env.OPENAI_MODEL,
+          openaiAnalyzeModel: c.env.OPENAI_ANALYZE_MODEL,
           cfModel: c.env.CF_AI_MODEL,
+          cfAnalyzeModel: c.env.CF_AI_ANALYZE_MODEL,
           cfFallbackModel: c.env.CF_AI_FALLBACK_MODEL,
         }
       );

@@ -9,6 +9,7 @@
 //           data-eral-position="bottom-right"
 //           data-eral-greeting="Hi! How can I help?"
 //           data-eral-product="support-portal"
+//           data-eral-quality="best"
 //           data-eral-page-context="true"
 //   ></script>
 //
@@ -25,6 +26,7 @@ const ERAL_API = 'https://eral.wokspec.org/api';
 const ROOT_ID = '__eral_host__';
 
 type Position = 'bottom-right' | 'bottom-left';
+type AIQuality = 'fast' | 'balanced' | 'best';
 type IntegrationMetadataValue = string | number | boolean;
 
 interface WidgetIntegrationConfig {
@@ -46,6 +48,7 @@ interface EralConfig {
   name?: string;
   color?: string;
   position?: Position;
+  quality?: AIQuality;
   greeting?: string;
   placeholder?: string;
   apiUrl?: string;
@@ -60,6 +63,7 @@ interface ResolvedConfig {
   name: string;
   color: string;
   position: Position;
+  quality: AIQuality;
   greeting: string;
   placeholder: string;
   apiUrl: string;
@@ -433,6 +437,7 @@ class EralWidgetInstance {
       name: normalizeText(config.name) ?? 'Eral',
       color: normalizeText(config.color) ?? '#7c3aed',
       position: config.position ?? 'bottom-right',
+      quality: config.quality ?? 'balanced',
       greeting: normalizeText(config.greeting) ?? 'Hi! I\'m Eral, your AI assistant. How can I help?',
       placeholder: normalizeText(config.placeholder) ?? 'Ask me anything...',
       apiUrl: normalizeText(config.apiUrl) ?? ERAL_API,
@@ -601,6 +606,7 @@ class EralWidgetInstance {
     return {
       message,
       sessionId: this.sessionId,
+      quality: this.config.quality,
       product: this.config.product,
       integration: this.getIntegrationContext(),
       pageContext: this.config.capturePageContext ? buildPageContext(this.config.pageContextMaxChars) : undefined,
@@ -736,6 +742,7 @@ function autoInit(): void {
     placeholder: normalizeText(script.dataset.eralPlaceholder),
     apiUrl: normalizeText(script.dataset.eralApiUrl),
     product: normalizeText(script.dataset.eralProduct),
+    quality: normalizeText(script.dataset.eralQuality) as AIQuality | undefined,
     integration,
     capturePageContext: parseBoolean(script.dataset.eralPageContext),
     pageContextMaxChars: parsePositiveInt(script.dataset.eralPageContextMaxChars),

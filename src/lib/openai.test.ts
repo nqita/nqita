@@ -51,6 +51,7 @@ describe('run', () => {
       {
         cfAI: { run: cfRun } as unknown as Ai,
         openaiApiKey: 'test-key',
+        spendMode: 'paid-fallback',
       }
     );
 
@@ -58,6 +59,28 @@ describe('run', () => {
     expect(result.model.provider).toBe('openai');
     expect(fetchSpy).toHaveBeenCalledTimes(1);
 
+    fetchSpy.mockRestore();
+  });
+
+  it('blocks paid fallback in free-only mode', async () => {
+    const cfRun = vi.fn().mockRejectedValue(new Error('cf failed'));
+    const fetchSpy = vi.spyOn(globalThis, 'fetch');
+    fetchSpy.mockResolvedValue(createFetchResponse({
+      choices: [{ message: { content: 'openai-response' } }],
+    }) as unknown as Response);
+
+    await expect(() =>
+      run(
+        { messages: MESSAGES, maxTokens: 128 },
+        {
+          cfAI: { run: cfRun } as unknown as Ai,
+          openaiApiKey: 'test-key',
+          spendMode: 'free-only',
+        }
+      )
+    ).rejects.toThrow('cf failed');
+
+    expect(fetchSpy).not.toHaveBeenCalled();
     fetchSpy.mockRestore();
   });
 
@@ -87,6 +110,27 @@ describe('run', () => {
     expect(cfRun).toHaveBeenNthCalledWith(
       2,
       '@cf/meta/llama-3.1-8b-instruct-fp8-fast',
+      expect.any(Object)
+    );
+  });
+
+  it('uses route-specific models when provided', async () => {
+    const cfRun = vi.fn().mockResolvedValue({ response: 'cloudflare-response' });
+
+    const result = await run(
+      { messages: MESSAGES, maxTokens: 128, route: 'analyze', quality: 'best' },
+      {
+        cfAI: { run: cfRun } as unknown as Ai,
+        cfModel: '@cf/meta/llama-3.3-70b-instruct-fp8-fast',
+        cfAnalyzeModel: '@cf/meta/llama-4-scout-17b-16e-instruct',
+        cfFallbackModel: '@cf/meta/llama-3.1-8b-instruct-fp8-fast',
+      }
+    );
+
+    expect(result.content).toBe('cloudflare-response');
+    expect(result.model.model).toBe('@cf/meta/llama-4-scout-17b-16e-instruct');
+    expect(cfRun).toHaveBeenCalledWith(
+      '@cf/meta/llama-4-scout-17b-16e-instruct',
       expect.any(Object)
     );
   });

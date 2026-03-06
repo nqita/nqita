@@ -26,7 +26,7 @@ All endpoints require `Authorization: Bearer <jwt>` (WokSpec JWT, shared secret)
 | Method | Path | Description |
 |--------|------|-------------|
 | `GET`  | `/health` | Health check |
-| `GET`  | `/v1/status` | Provider info and model variants |
+| `GET`  | `/v1/status` | Provider info, spend policy, and per-route model variants |
 | `POST` | `/v1/chat` | Chat with persistent session memory and optional integration context |
 | `GET`  | `/v1/chat/sessions` | List sessions |
 | `GET`  | `/v1/chat/:sessionId` | Session history |
@@ -53,6 +53,9 @@ where it is running and what the user is doing.
 }
 ```
 
+Main generation endpoints also accept optional `quality: "fast" | "balanced" | "best"` so callers
+can trade off latency versus output quality while still respecting Eral's spend policy.
+
 ### AI providers
 
 | Provider | Used for |
@@ -61,9 +64,14 @@ where it is running and what the user is doing.
 | OpenAI GPT-4o | Optional paid override |
 | Groq (Llama 3.3 70B) | High-speed inference for WokGen/Vecto |
 
-By default Eral now prefers Cloudflare Workers AI so it can stay free during early rollout. The
-default model is `@cf/meta/llama-3.3-70b-instruct-fp8-fast`, with
-`@cf/meta/llama-3.1-8b-instruct-fp8-fast` as the automatic fallback.
+By default Eral runs in `free-only` mode so it stays on Cloudflare Workers AI even if an
+`OPENAI_API_KEY` is present. You can switch to `paid-fallback` or `paid-primary` explicitly if you
+want OpenAI available.
+
+The default model is `@cf/meta/llama-3.3-70b-instruct-fp8-fast`, with
+`@cf/meta/llama-3.1-8b-instruct-fp8-fast` as the automatic fallback. You can also override models
+per route with `CF_AI_CHAT_MODEL`, `CF_AI_GENERATE_MODEL`, `CF_AI_ANALYZE_MODEL`,
+`CF_AI_WOKGEN_MODEL`, and the matching `OPENAI_*` variants.
 
 ---
 
@@ -95,6 +103,7 @@ Drop the Eral widget into any WokSpec product (or external site):
   data-eral-key="eral_..."
   data-eral-name="Eral"
   data-eral-product="support-portal"
+  data-eral-quality="best"
   data-eral-page-context="true"
 ></script>
 ```

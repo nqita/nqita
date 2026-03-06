@@ -1,4 +1,4 @@
-import type { Env, Message, ModelInfo } from '../types';
+import type { AIQuality, AIRoute, AISpendMode, Env, Message, ModelInfo } from '../types';
 
 // ── Provider interface ────────────────────────────────────────────────────────
 
@@ -7,6 +7,8 @@ export interface RunOptions {
   maxTokens?: number;
   temperature?: number;
   stream?: false; // streaming handled separately
+  route?: AIRoute;
+  quality?: AIQuality;
 }
 
 export interface RunResult {
@@ -17,6 +19,9 @@ export interface RunResult {
 const DEFAULT_OPENAI_MODEL = 'gpt-4o';
 const DEFAULT_CF_MODEL = '@cf/meta/llama-3.3-70b-instruct-fp8-fast';
 const DEFAULT_CF_FALLBACK_MODEL = '@cf/meta/llama-3.1-8b-instruct-fp8-fast';
+const DEFAULT_ROUTE: AIRoute = 'chat';
+const DEFAULT_QUALITY: AIQuality = 'balanced';
+const DEFAULT_SPEND_MODE: AISpendMode = 'free-only';
 
 // ── OpenAI GPT-4o ─────────────────────────────────────────────────────────────
 
@@ -92,6 +97,94 @@ async function runCloudflareAI(
   }
 }
 
+function resolveSpendMode(mode?: AISpendMode): AISpendMode {
+  return mode ?? DEFAULT_SPEND_MODE;
+}
+
+function resolveRoute(route?: AIRoute): AIRoute {
+  return route ?? DEFAULT_ROUTE;
+}
+
+function resolveQuality(quality?: AIQuality): AIQuality {
+  return quality ?? DEFAULT_QUALITY;
+}
+
+function pickOpenAIModel(
+  route: AIRoute,
+  providers: {
+    openaiModel?: string;
+    openaiChatModel?: string;
+    openaiGenerateModel?: string;
+    openaiAnalyzeModel?: string;
+    openaiWokgenModel?: string;
+  }
+): string {
+  switch (route) {
+    case 'chat':
+      return providers.openaiChatModel ?? providers.openaiModel ?? DEFAULT_OPENAI_MODEL;
+    case 'generate':
+      return providers.openaiGenerateModel ?? providers.openaiModel ?? DEFAULT_OPENAI_MODEL;
+    case 'analyze':
+      return providers.openaiAnalyzeModel ?? providers.openaiModel ?? DEFAULT_OPENAI_MODEL;
+    case 'wokgen':
+      return providers.openaiWokgenModel ?? providers.openaiGenerateModel ?? providers.openaiModel ?? DEFAULT_OPENAI_MODEL;
+  }
+}
+
+function pickCloudflareModel(
+  route: AIRoute,
+  quality: AIQuality,
+  providers: {
+    cfModel?: string;
+    cfChatModel?: string;
+    cfGenerateModel?: string;
+    cfAnalyzeModel?: string;
+    cfWokgenModel?: string;
+    cfFallbackModel?: string;
+  }
+): { primary: string; fallback: string } {
+  const configuredPrimary = (() => {
+    switch (route) {
+      case 'chat':
+        return providers.cfChatModel ?? providers.cfModel;
+      case 'generate':
+        return providers.cfGenerateModel ?? providers.cfModel;
+      case 'analyze':
+        return providers.cfAnalyzeModel ?? providers.cfModel;
+      case 'wokgen':
+        return providers.cfWokgenModel ?? providers.cfGenerateModel ?? providers.cfModel;
+    }
+  })();
+
+  // Fast requests can bias toward the smaller fallback model to conserve quota
+  // and latency without requiring route-specific model env vars.
+  const primary = quality === 'fast'
+    ? (providers.cfFallbackModel ?? configuredPrimary ?? DEFAULT_CF_FALLBACK_MODEL)
+    : (configuredPrimary ?? DEFAULT_CF_MODEL);
+
+  return {
+    primary,
+    fallback: providers.cfFallbackModel ?? DEFAULT_CF_FALLBACK_MODEL,
+  };
+}
+
+function resolveProviderOrder(
+  spendMode: AISpendMode,
+  preferredProvider?: Env['AI_PROVIDER']
+): Array<'cloudflare' | 'openai'> {
+  if (spendMode === 'free-only') {
+    return ['cloudflare'];
+  }
+
+  if (spendMode === 'paid-fallback') {
+    return ['cloudflare', 'openai'];
+  }
+
+  return preferredProvider === 'openai'
+    ? ['openai', 'cloudflare']
+    : ['cloudflare', 'openai'];
+}
+
 // ── Unified run function ──────────────────────────────────────────────────────
 
 /**
@@ -106,15 +199,27 @@ export async function run(
     openaiApiKey?: string;
     cfAI?: Ai;
     preferredProvider?: Env['AI_PROVIDER'];
+    spendMode?: AISpendMode;
     openaiModel?: string;
+    openaiChatModel?: string;
+    openaiGenerateModel?: string;
+    openaiAnalyzeModel?: string;
+    openaiWokgenModel?: string;
     cfModel?: string;
+    cfChatModel?: string;
+    cfGenerateModel?: string;
+    cfAnalyzeModel?: string;
+    cfWokgenModel?: string;
     cfFallbackModel?: string;
   }
 ): Promise<RunResult> {
-  const providerOrder: Array<'cloudflare' | 'openai'> =
-    providers.preferredProvider === 'openai'
-      ? ['openai', 'cloudflare']
-      : ['cloudflare', 'openai'];
+  const spendMode = resolveSpendMode(providers.spendMode);
+  const route = resolveRoute(options.route);
+  const quality = resolveQuality(options.quality);
+  const providerOrder = resolveProviderOrder(spendMode, providers.preferredProvider);
+  const cfModels = pickCloudflareModel(route, quality, providers);
+  const openaiModel = pickOpenAIModel(route, providers);
+  let lastError: unknown;
 
   for (const provider of providerOrder) {
     if (provider === 'cloudflare' && providers.cfAI) {
@@ -122,10 +227,11 @@ export async function run(
         return await runCloudflareAI(
           providers.cfAI,
           options,
-          providers.cfModel ?? DEFAULT_CF_MODEL,
-          providers.cfFallbackModel ?? DEFAULT_CF_FALLBACK_MODEL
+          cfModels.primary,
+          cfModels.fallback
         );
       } catch (error) {
+        lastError = error;
         if (!providers.openaiApiKey) throw error;
       }
     }
@@ -135,12 +241,21 @@ export async function run(
         return await runOpenAI(
           providers.openaiApiKey,
           options,
-          providers.openaiModel ?? DEFAULT_OPENAI_MODEL
+          openaiModel
         );
       } catch (error) {
+        lastError = error;
         if (!providers.cfAI) throw error;
       }
     }
+  }
+
+  if (lastError) {
+    throw lastError;
+  }
+
+  if (spendMode === 'free-only' && providers.openaiApiKey && !providers.cfAI) {
+    throw new Error('No free AI provider configured. Cloudflare Workers AI is required while AI_SPEND_MODE=free-only.');
   }
 
   throw new Error('No AI provider configured. Set AI binding for Cloudflare AI or provide OPENAI_API_KEY.');

@@ -6,6 +6,7 @@
 export const ERAL_API = process.env.PLASMO_PUBLIC_ERAL_API_URL ?? "https://eral.wokspec.org/api"
 
 type IntegrationMetadataValue = string | number | boolean
+type AIQuality = "fast" | "balanced" | "best"
 
 interface ExtensionIntegrationContext {
   name: string
@@ -25,6 +26,7 @@ interface RequestContextOptions {
   pageTitle?: string
   context?: string
   focus?: string
+  quality?: AIQuality
   systemHint?: string
   instructions?: string
   capabilities?: string[]
@@ -104,6 +106,7 @@ export async function eralChat(
       body: JSON.stringify({
         message,
         sessionId,
+        quality: options.quality ?? "balanced",
         product: "extension",
         integration: buildExtensionIntegration(options, [
           "chat",
@@ -145,6 +148,7 @@ export async function eralAnalyze(
       body: JSON.stringify({
         type,
         content,
+        quality: options.quality ?? "best",
         context: options.context,
         focus: options.focus,
         systemHint: options.systemHint,
@@ -186,6 +190,7 @@ export async function eralGenerate(
       body: JSON.stringify({
         type,
         content,
+        quality: options.quality ?? "best",
         context: options.context,
         product: "extension",
         integration: buildExtensionIntegration(options, [
