@@ -138,6 +138,15 @@ wrangler kv namespace create KV_MEMORY
 
 ---
 
+## Documentation
+
+- [Eral Architecture](./docs/architecture.md)
+- [API Reference](./docs/api.md)
+- [WokSpec Ecosystem Overview](https://github.com/WokSpec/WokDocs)
+- [Contributing Guide](https://github.com/WokSpec/WokDocs/blob/main/CONTRIBUTING.md)
+
+---
+
 ## License
 
 Source available under [FSL-1.1-MIT](./LICENSE). Free for personal and non-commercial use. Converts to MIT two years after publication.
