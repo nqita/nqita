@@ -8,6 +8,9 @@ import { analyzeRouter } from './routes/analyze';
 import { wokgenRouter } from './routes/wokgen';
 import { statusRouter } from './routes/status';
 import { keysRouter } from './routes/keys';
+import { toolsRouter } from './routes/tools';
+import { workspacesRouter } from './routes/workspaces';
+import { creditsRouter } from './routes/credits';
 // @ts-ignore — imported as text blob via wrangler [[rules]]
 import WIDGET_BUNDLE from '../dist/eral-widget.txt';
 
@@ -32,25 +35,28 @@ app.use('*', cors({
     return origin ?? '*';
   },
   allowMethods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowHeaders: ['Content-Type', 'Authorization', 'X-Eral-Source'],
+  allowHeaders: ['Content-Type', 'Authorization', 'X-Eral-Source', 'X-Eral-Anon-Id'],
   credentials: true,
 }));
 
 // ===== INFO =====
 app.get('/', (c) => c.json({
   service: 'Eral',
-  description: 'WokSpec AI — embed intelligent chat, generation & analysis into any product',
-  version: '0.2.0',
+  description: 'Eral powers WokSpec AI: context-aware agents that understand your workspace and act across web + internal apps.',
+  version: '1.0.0',
   docs: 'https://eral.wokspec.org/docs',
-  auth: 'WokSpec JWT  or  Eral API key (Authorization: Bearer <token>)',
+  auth: 'WokSpec JWT or Eral API key',
   endpoints: {
-    chat:     'POST /api/v1/chat',
-    generate: 'POST /api/v1/generate',
-    analyze:  'POST /api/v1/analyze',
-    wokgen:   'POST /api/v1/wokgen/prompt',
-    keys:     'GET|POST|DELETE /api/v1/keys',
-    status:   'GET  /api/v1/status',
-    widget:   'GET  /api/widget.js',
+    chat:       'POST /api/v1/chat',
+    generate:   'POST /api/v1/generate',
+    analyze:    'POST /api/v1/analyze',
+    wokgen:     'POST /api/v1/wokgen/prompt',
+    keys:       'GET|POST|DELETE /api/v1/keys',
+    tools:      'GET /api/v1/tools',
+    workspaces: 'GET|POST /api/v1/workspaces',
+    credits:    'GET /api/v1/credits',
+    status:     'GET /api/v1/status',
+    widget:     'GET /api/widget.js',
   },
 }));
 
@@ -59,19 +65,22 @@ app.get('/api/health', (c) => c.json({ status: 'ok', timestamp: new Date().toISO
 
 // ===== ROUTES =====
 // Mount at both /v1/* (workers.dev direct) and /api/v1/* (custom domain CF route)
-app.route('/v1/chat', chatRouter);
-app.route('/v1/generate', generateRouter);
-app.route('/v1/analyze', analyzeRouter);
-app.route('/v1/wokgen', wokgenRouter);
-app.route('/v1/status', statusRouter);
-app.route('/v1/keys', keysRouter);
+const routes = [
+  { path: '/v1/chat', router: chatRouter },
+  { path: '/v1/generate', router: generateRouter },
+  { path: '/v1/analyze', router: analyzeRouter },
+  { path: '/v1/wokgen', router: wokgenRouter },
+  { path: '/v1/status', router: statusRouter },
+  { path: '/v1/keys', router: keysRouter },
+  { path: '/v1/tools', router: toolsRouter },
+  { path: '/v1/workspaces', router: workspacesRouter },
+  { path: '/v1/credits', router: creditsRouter },
+];
 
-app.route('/api/v1/chat', chatRouter);
-app.route('/api/v1/generate', generateRouter);
-app.route('/api/v1/analyze', analyzeRouter);
-app.route('/api/v1/wokgen', wokgenRouter);
-app.route('/api/v1/status', statusRouter);
-app.route('/api/v1/keys', keysRouter);
+for (const r of routes) {
+  app.route(r.path, r.router);
+  app.route(`/api${r.path}`, r.router);
+}
 
 // widget.js — serve the pre-built IIFE bundle directly
 const WIDGET_HEADERS = {

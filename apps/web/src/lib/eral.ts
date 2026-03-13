@@ -11,7 +11,19 @@ export interface ChatResponse {
     sessionId: string;
     model: { provider: string; model: string };
   };
-  error: null | string;
+  error: null | { code: string; message: string; status: number };
+}
+
+export interface UserCredits {
+  balance: number;
+  messages: number;
+  plan: 'free' | 'premium' | 'enterprise';
+  lastReset: string;
+}
+
+export interface CreditsResponse {
+  data: UserCredits;
+  error: null | { code: string; message: string; status: number };
 }
 
 export interface SessionsResponse {
@@ -29,10 +41,26 @@ function getApiKey(): string {
   return localStorage.getItem('eral_token') ?? '';
 }
 
+function getAnonId(): string {
+  if (typeof window === 'undefined') return '';
+  let id = localStorage.getItem('eral_anon_id');
+  if (!id) {
+    id = crypto.randomUUID();
+    localStorage.setItem('eral_anon_id', id);
+  }
+  return id;
+}
+
 function buildHeaders(): HeadersInit {
   const key = getApiKey();
-  const h: Record<string, string> = { 'Content-Type': 'application/json' };
-  if (key) h['Authorization'] = `Bearer ${key}`;
+  const anonId = getAnonId();
+  const h: Record<string, string> = { 
+    'Content-Type': 'application/json',
+    'X-Eral-Anon-Id': anonId
+  };
+  if (key) {
+    h['Authorization'] = `Bearer ${key}`;
+  }
   return h;
 }
 
@@ -49,11 +77,20 @@ export async function sendChat(
   sessionId?: string,
 ): Promise<ChatResponse> {
   const res = await fetch(`${ERAL_API}/v1/chat`, fetchOptions('POST', { message, sessionId }));
+  const payload = await res.json();
   if (!res.ok) {
-    const text = await res.text().catch(() => res.statusText);
-    throw new Error(text || `HTTP ${res.status}`);
+    return { data: null as any, error: payload.error || { code: 'ERROR', message: 'Chat failed', status: res.status } };
   }
-  return res.json() as Promise<ChatResponse>;
+  return payload as ChatResponse;
+}
+
+export async function getCredits(): Promise<CreditsResponse> {
+  const res = await fetch(`${ERAL_API}/v1/credits`, fetchOptions('GET'));
+  if (!res.ok) {
+    const payload = await res.json().catch(() => ({}));
+    return { data: null as any, error: payload.error || { code: 'ERROR', message: 'Failed to fetch credits', status: res.status } };
+  }
+  return res.json() as Promise<CreditsResponse>;
 }
 
 export async function getSessions(): Promise<SessionsResponse> {

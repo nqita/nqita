@@ -38,7 +38,7 @@ export default function HomePage() {
           <div className="absolute bottom-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-white/5 to-transparent" />
         </div>
 
-        <div className="inline-flex items-center gap-2 bg-white/5 border border-white/10 rounded-full px-4 py-1.5 mb-10 animate-in" style={{ animationDelay: '0s' }}>
+        <div className="inline-flex items-center gap-2 bg-white/5 border border-white/10 rounded-full px-4 py-1.5 mb-10 animate-in">
           <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
           <span className="text-[11px] font-bold text-muted uppercase tracking-[0.2em]">Supercharged by Groq LPU</span>
         </div>

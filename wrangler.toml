@@ -45,6 +45,10 @@ id = "381283eb1b1e4f02b4c9b26dcbaa07ab"
 binding = "KV_API_KEYS"
 id = "e4197f2c6dcd42b5ac1065d01ee9f0e8"
 
+[[kv_namespaces]]
+binding = "KV_CREDITS"
+id = "487bab854f714db8a46e50f80f51d766" # Reusing KV_SESSIONS ID
+
 # Cloudflare Workers AI (free-first default provider)
 [ai]
 binding = "AI"

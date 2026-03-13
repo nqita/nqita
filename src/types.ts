@@ -9,6 +9,7 @@ export interface Env {
   KV_RATE_LIMITS: KVNamespace | undefined;
   KV_MEMORY: KVNamespace | undefined;
   KV_API_KEYS: KVNamespace | undefined; // API keys for external site integration
+  KV_CREDITS: KVNamespace | undefined;  // Enterprise credit system
 
   // Cloudflare Workers AI (fallback when OpenAI key absent)
   AI: Ai | undefined;
@@ -43,6 +44,7 @@ export interface EralUser {
   email: string;
   displayName: string;
   avatarUrl: string | null;
+  plan?: 'free' | 'premium' | 'enterprise';
 }
 
 /** Auth context — populated by either JWT or API key */
@@ -52,6 +54,13 @@ export interface EralAuth {
   apiKey: ApiKeyRecord | null;
   /** How this request was authenticated */
   method: 'jwt' | 'apikey' | 'none';
+}
+
+export interface UserCredits {
+  balance: number;      // USD balance (e.g. 0.05)
+  messages: number;     // Message count for free tier
+  plan: 'free' | 'premium' | 'enterprise';
+  lastReset: string;    // ISO timestamp
 }
 
 export interface ApiKeyRecord {

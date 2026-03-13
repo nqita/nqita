@@ -184,16 +184,7 @@ function NavLink({ href, children }: { href: string; children: React.ReactNode }
   return (
     <a
       href={href}
-      style={{
-        display: 'block',
-        fontSize: '0.825rem',
-        color: 'var(--muted)',
-        textDecoration: 'none',
-        padding: '0.25rem 0',
-        transition: 'color 0.15s',
-      }}
-      onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--foreground)')}
-      onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--muted)')}
+      className="block text-[0.825rem] text-muted hover:text-foreground transition-colors py-1 no-underline"
     >
       {children}
     </a>

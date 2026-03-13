@@ -1,13 +1,14 @@
 import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
-import type { Env, EralUser } from '../types';
+import type { Env, EralUser, EralAuth } from '../types';
 import { requireAuth, rateLimit } from '../middleware';
 import { run, eralSystemPrompt } from '../lib/openai';
 import { getMemory, appendMemory, clearMemory, listSessions } from '../lib/memory';
 import { buildContext, IntegrationSchema, ProductSchema, productPromptExtras } from '../lib/context';
+import { deductCredits } from '../lib/credits';
 
-const chat = new Hono<{ Bindings: Env; Variables: { user: EralUser } }>();
+const chat = new Hono<{ Bindings: Env; Variables: { user: EralUser; auth: EralAuth } }>();
 chat.use('*', requireAuth('chat'));
 
 const MessageSchema = z.object({
@@ -31,7 +32,19 @@ chat.post(
   })),
   async (c) => {
     const user = c.get('user');
+    const auth = c.get('auth');
     const { message, sessionId, quality, product, integration, pageContext, history } = c.req.valid('json');
+
+    // Deduct credits before running AI (unless authenticated via API Key which is currently unlimited)
+    if (auth.method !== 'apikey') {
+      const creditResult = await deductCredits(c.env.KV_CREDITS, user.id);
+      if (!creditResult.ok) {
+        return c.json(
+          { data: null, error: { code: 'PAYMENT_REQUIRED', message: creditResult.error, status: creditResult.status } },
+          creditResult.status as any
+        );
+      }
+    }
 
     // Build context extras
     const userContext = buildContext({ user, product, integration, pageContext });

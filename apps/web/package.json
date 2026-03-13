@@ -5,8 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "build:cf": "next build && opennextjs-cloudflare build --skipNextBuild && cp .open-next/worker.js .open-next/assets/_worker.js && cp -r .open-next/cloudflare .open-next/assets/ && cp -r .open-next/server-functions .open-next/assets/ && cp -r .open-next/middleware .open-next/assets/ && cp -r .open-next/.build .open-next/assets/ && node -e \"const r={version:1,include:['/*'],exclude:['/_next/static/*','/_next/image*','/favicon.ico']};require('fs').writeFileSync('.open-next/assets/_routes.json',JSON.stringify(r))\"",
-    "deploy": "npm run build:cf && wrangler pages deploy .open-next/assets --project-name eral --branch main",
+    "deploy": "npm run build && wrangler pages deploy out --project-name eral --branch main",
     "type-check": "tsc --noEmit"
   },
   "dependencies": {

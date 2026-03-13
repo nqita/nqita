@@ -47,7 +47,16 @@ export const rateLimit = (
 async function resolveAuth(c: Context<{ Bindings: Env; Variables: any }>): Promise<EralAuth> {
   const authHeader = c.req.header('Authorization');
   const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
-  if (!token) return { user: null, apiKey: null, method: 'none' };
+
+  if (!token) {
+    // Check for anonymous session cookie for free trial
+    const anonId = c.req.header('X-Eral-Anon-Id');
+    if (anonId) {
+      const user: EralUser = { id: `anon:${anonId}`, email: '', displayName: 'Trial User', avatarUrl: null, plan: 'free' };
+      return { user, apiKey: null, method: 'none' };
+    }
+    return { user: null, apiKey: null, method: 'none' };
+  }
 
   // API key (starts with eral_)
   if (token.startsWith('eral_')) {
@@ -60,8 +69,14 @@ async function resolveAuth(c: Context<{ Bindings: Env; Variables: any }>): Promi
   }
 
   // WokSpec JWT
+  if (!c.env.JWT_SECRET) {
+    return { user: null, apiKey: null, method: 'none' };
+  }
+
   const user = await verifyToken(token, c.env.JWT_SECRET);
-  if (user) return { user, apiKey: null, method: 'jwt' };
+  if (user) {
+    return { user, apiKey: null, method: 'jwt' };
+  }
 
   return { user: null, apiKey: null, method: 'none' };
 }
@@ -71,7 +86,12 @@ export const requireAuth = (
 ): MiddlewareHandler<{ Bindings: Env; Variables: { user: EralUser; auth: EralAuth } }> => {
   return async (c, next) => {
     const auth = await resolveAuth(c);
+    const ip = c.req.header('cf-connecting-ip') ?? 'unknown';
+    const method = c.req.method;
+    const url = c.req.url;
+
     if (!auth.user) {
+      console.warn(`[Auth-Failed] 401 Unauthorized - IP: ${ip} - Method: ${method} - URL: ${url}`);
       return c.json(
         { data: null, error: { code: 'UNAUTHORIZED', message: 'Provide a WokSpec JWT or Eral API key (Authorization: Bearer <token>)', status: 401 } },
         401
@@ -80,6 +100,7 @@ export const requireAuth = (
     if (auth.method === 'apikey' && scope && auth.apiKey) {
       const allowed = auth.apiKey.scopes.includes('*') || auth.apiKey.scopes.includes(scope);
       if (!allowed) {
+        console.warn(`[Auth-Failed] 403 Forbidden - Scope ${scope} missing - IP: ${ip} - User: ${auth.user.id}`);
         return c.json(
           { data: null, error: { code: 'FORBIDDEN', message: `API key missing scope: ${scope}`, status: 403 } },
           403

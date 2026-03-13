@@ -104,6 +104,14 @@ export function ChatInterface() {
 
     try {
       const res = await sendChat(text, activeSessionId);
+      
+      if (res.error) {
+        if (res.error.status === 401 && res.error.code === 'PAYMENT_REQUIRED') {
+          window.dispatchEvent(new CustomEvent('eral:auth-wall'));
+        }
+        throw new Error(res.error.message);
+      }
+
       const newSessionId = res.data?.sessionId;
       const assistantMsg: Message = {
         id: uid(),
@@ -118,6 +126,9 @@ export function ChatInterface() {
         setSessions(next);
         emitSessionsUpdate(next, newSessionId);
       }
+      
+      // Refresh credits after successful chat
+      window.dispatchEvent(new CustomEvent('eral:refresh-credits'));
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : 'Something went wrong.';
       setError(errMsg);
