@@ -1,14 +1,13 @@
-<?xml version="1.0" encoding="utf-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="420" viewBox="0 0 1400 420">
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="400" viewBox="0 0 1600 400" preserveAspectRatio="xMidYMid slice">
   <defs>
     <linearGradient id="g" x1="0" x2="1">
-      <stop offset="0" stop-color="#FF2D95" stop-opacity="1"/>
-      <stop offset="1" stop-color="#000000" stop-opacity="0.25"/>
+      <stop offset="0" stop-color="#ff9acb"/>
+      <stop offset="1" stop-color="#ff4da6"/>
     </linearGradient>
   </defs>
-  <rect width="100%" height="100%" fill="url(#g)" />
-  <g fill="#ffffff" font-family="Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial" >
-    <text x="56" y="140" font-size="72" font-weight="700">Nikita</text>
-    <text x="56" y="200" font-size="28" opacity="0.95">AI Runtime & Embeddables</text>
+  <rect width="100%" height="100%" fill="url(#g)"/>
+  <g transform="translate(80,220)">
+    <text x="0" y="0" font-family="Inter, Helvetica, Arial, sans-serif" font-size="88" fill="#ffffff" font-weight="800">Nikita</text>
+    <text x="0" y="70" font-family="Inter, Helvetica, Arial, sans-serif" font-size="24" fill="#ffffff">AI runtime for WokSpec — pink branding</text>
   </g>
 </svg>
