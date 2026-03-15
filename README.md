@@ -1,4 +1,15 @@
 <p align="center">
+  <img src="assets/hero.svg" alt="nqita hero" />
+</p>
+
+# nqita
+
+nqita — AI runtime for WokSpec. Branded with pink theme and prepared to move to the `nqita` organization.
+
+
+---
+
+<p align="center">
   <img src="assets/hero.svg" alt="Nikita hero" />
 </p>
 
