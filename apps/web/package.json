@@ -9,7 +9,7 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
-    "@opennextjs/cloudflare": "^1.19.0",
+    "@opennextjs/cloudflare": "^1.19.1",
     "next": "^15.3.0",
     "react": "^19.2.5",
     "react-dom": "^19.2.5"
